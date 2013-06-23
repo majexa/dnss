@@ -1,1 +1,0 @@
-apt-get -y install git-core; git clone ssh://user@176.9.151.229:22102/home/user/repo/dns-server.git; cd dns-server; ./install.sh
