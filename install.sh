@@ -1,3 +1,4 @@
+!#/bin/bash
 #apt-get -y install python-software-properties
 #apt-get update
 #add-apt-repository --yes ppa:ondrej/php5

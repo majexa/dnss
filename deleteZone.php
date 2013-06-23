@@ -1,6 +1,5 @@
 <?
 
-
 $BIND_ZONECONF = "/etc/bind/named.conf.local";
 if (empty($_SERVER['argv'][1])) {
   echo "Usage: $0 [domain]";
