@@ -5,19 +5,19 @@ add-apt-repository --yes ppa:ondrej/php5
 apt-get -y install php5-cli
 
 echo "Input slave server IP"
-read slaveIp
+read slave
 cd /etc/bind
-conf="\tallow-transfer { 127.0.0.1; ${slaveIp}; };\n\tallow-recursion { 127.0.0.1; };\n\tnotify yes;"
+conf="\tallow-transfer { 127.0.0.1; ${slave}; };\n\tallow-recursion { 127.0.0.1; };\n\tnotify yes;"
 php -r "print preg_replace('/^};\n/m', \"${conf}\n};\", file_get_contents('named.conf.options'));"
 rndc reload
 
-ssh-keygen
-scp /root/.ssh/id_rsa.pub ${slaveIp}:/root/.ssh/authorized_keys
+ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
+cat ~/.ssh/id_rsa.pub | ssh ${slave} 'cat >> .ssh/authorized_keys'
 
-ssh ${slaveIp}
-apt-get -y install bind9 php5-cli
-cd /etc/bind
-conf="\tallow-transfer { 127.0.0.1; };\n\tallow-recursion { 127.0.0.1; };"
-php -r "print preg_replace('/^};\n/m', \"${conf}\n};\", file_get_contents('named.conf.options'));"
-rndc reload
-exit
+ssh ${slave} << EOF
+  apt-get -y install bind9 php5-cli
+  cd /etc/bind
+  conf="\tallow-transfer { 127.0.0.1; };\n\tallow-recursion { 127.0.0.1; };"
+  php -r "file_put_contents(preg_replace('/^};\n/m', \"${conf}\n};\", file_get_contents('named.conf.options'));"
+  rndc reload
+EOF
