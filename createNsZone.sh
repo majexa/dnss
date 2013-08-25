@@ -19,6 +19,7 @@ ip=$2
 MASTER_IP=$3
 SLAVE_IP=$4
 
+mkdir ${BIND_DIR}/zones
 zone_file="${BIND_DIR}/zones/db.$domain"
 nowdate=$(date +%Y%m%d)
 

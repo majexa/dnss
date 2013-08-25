@@ -15,7 +15,7 @@ ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
 cat ~/.ssh/id_rsa.pub | ssh ${slave} 'cat >> .ssh/authorized_keys'
 
 ssh ${slave} << EOF
-  apt-get -y install bind9 php5-cli
+  apt-get -y install bind9
   cd /etc/bind
   conf="\tallow-transfer { 127.0.0.1; };\n\tallow-recursion { 127.0.0.1; };"
   php -r "file_put_contents('named.conf.options', preg_replace('/^};\n/m', \"${conf}\n};\", file_get_contents('named.conf.options')));"
