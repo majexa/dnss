@@ -74,8 +74,6 @@ chmod +x deleteZone.sh
 
 # slave
 
-$SSH root@$SLAVE_IP mkdir /etc/bind/zones
-
 if ! $SSH root@$SLAVE_IP "grep -q $domain $BIND_ZONECONF"; then
 
 $SSH root@$SLAVE_IP "( cat << EOF
