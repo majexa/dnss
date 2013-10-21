@@ -7,7 +7,7 @@ class DnsServer {
   public $nsZone, $ip, $masterIp, $slaveIp;
 
   function __construct() {
-    Arr::toObjProp(include dirname(__DIR__).'/config.php', $this);
+    Arr::toObjProp(require dirname(__DIR__).'/config.php', $this);
   }
 
   protected function parseDomain($domain) {
@@ -22,19 +22,39 @@ class DnsServer {
 
   protected $baseRecordsEnd = '; -- END OF BASE RECORD --';
 
+  /**
+   * base - создаются при создании файла и больше не меняются
+   * dynamic - могут менять после создания
+   * subdomains - записи, относящиеся к сабдоменам
+   */
   protected function parseRecords($baseDomain) {
     $c = file_get_contents($this->zoneFile($baseDomain));
     if (!preg_match("/(.*)$this->baseRecordsEnd(.*)/ms", $c, $m)) throw new Exception("Zone file for domain '$baseDomain' was created manual and has unsupported syntax");
-    if (trim($m[2])) {
+    $r['base'] = $m[1];
+    if (!preg_match('/^@\s+A\s+([0-9.]+)$/m', $r['base'], $m2)) throw new Exception('Base A record not found');
+    $r['ip'] = $m2[1];
+    $other = trim($m[2]);
+    if ($other) {
       // domain $baseDomain has extra A records
-      foreach (explode("\n", $m[2]) as $v) {
+      foreach (explode("\n", $other) as $v) {
         if (!trim($v)) continue;
-        if (!preg_match('/([a-z0-9*\.-]+)\s+A\s+([0-9\.]+)/', $v, $m2)) throw new Exception("Parse error of record '$v'");
-        $subDomains[$m2[1]] = $m2[2];
+        if (!preg_match('/([a-z0-9*\.-]+)\s+A\s+([0-9\.]+)/', $v, $m2)) continue;//throw new Exception("Parse error of record '$v'");
+        $r['subDomains'][$m2[1]] = $other;
       }
     }
-    $m[1] = preg_replace('/(\d+)(\s+; Serial)/m', date('ymds').'$2', $m[1]);
-    return [$m[1], $subDomains];
+    $this->parseSubRecord($r, 'mx', $other, '/^\s*(MX\s+\d+\s+.*)$/m');
+    $this->parseSubRecord($r, 'yamail', $other, '/^\s*(.*)\s+CNAME\s+mail.yandex.ru$/m');
+    //die2($r);
+    $r['base'] = preg_replace('/(\d+)(\s+; Serial)/m', date('ymds').'$2', $r['base']);
+    return $r;
+  }
+
+  protected function parseSubRecord(&$r, $name, $otherRecords, $regexp) {
+    if (preg_match($regexp, $otherRecords, $m)) {
+      if (count($m) == 2) $r['dynamic'][$name] = $m[1];
+      elseif (count($m) > 2) $r['dynamic'][$name] = array_slice($m, 1);
+      else throw new Exception('no group in regexp');
+    }
   }
 
   protected function zoneFile($baseDomain) {
@@ -65,6 +85,8 @@ TEXT;
 TEXT;
   }
 
+
+
   protected function addSubDomainRecords($records, $subDomains) {
     $records .= $this->baseRecordsEnd."\n";
     if ($subDomains) foreach ($subDomains as $subDomain => $ip) $records .= "$subDomain  A  $ip\n";
@@ -75,26 +97,66 @@ TEXT;
     print sys(self::BIND_CHECKCONF.' '.$this->zoneFile($domain));
   }
 
-  function createZone($domain, $ip) {
-    list($baseDomain, $subDomain) = $this->parseDomain($domain);
-    $zoneFile = $this->zoneFile($baseDomain);
-    if (file_exists($zoneFile)) {
-      list($records, $subDomains) = $this->parseRecords($baseDomain);
-    }
-    else {
-      $records = $this->getBaseRecord($ip);
-    }
-    if ($subDomain) $subDomains[$subDomain] = $ip;
-    else $records .= "                MX 10   mail.$domain.\n";
-    file_put_contents($zoneFile, $this->addSubDomainRecords($records, $subDomains));
+  function createZone($domain, $ip, array $dynamic = []) {
+    list($baseDomain) = $this->parseDomain($domain);
+    if (file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' already exists");
+    $parsedRecords['base'] = $this->getBaseRecord($ip);
+    $parsedRecords['ip'] = $ip;
+    $this->_updateZone($baseDomain ,$parsedRecords, $dynamic);
+  }
+
+  function updateZone($domain, array $dynamic = []) {
+    list($baseDomain) = $this->parseDomain($domain);
+    if (!file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' not exists");
+    $parsedRecords = $this->parseRecords($baseDomain);
+    $this->_updateZone($baseDomain, $parsedRecords, $dynamic);
+  }
+
+  protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
+    $parsedRecords['dynamic'] = [];
+    $parsedRecords['dynamic']['mx'] = "MX  10  mail.$baseDomain.";
+    foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
+    file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
     sys("rndc reload");
     $this->addToSlave($baseDomain);
   }
 
+  protected function addDynamicRecord($domain, $name, $record) {
+    File::checkExists($this->zoneFile($domain));
+    $parsedRecords = $this->parseRecords($domain);
+    $parsedRecords['dynamic'][$name] = $record;
+    file_put_contents($this->zoneFile($domain), $this->toString($parsedRecords));
+  }
+
+  protected function removeDynamicRecord($domain, $name) {
+    File::checkExists($this->zoneFile($domain));
+    $parsedRecords = $this->parseRecords($domain);
+    unset($parsedRecords['dynamic'][$name]);
+    file_put_contents($this->zoneFile($domain), $this->toString($parsedRecords));
+  }
+
+  function addYamailSupport($domain, $code) {
+    $this->addDynamicRecord($domain, 'yamail', "$code.$domain.  CNAME  mail.yandex.ru.");
+  }
+
+  function removeYamailSupport($domain) {
+    $this->removeDynamicRecord($domain, 'yamail');
+  }
+
+  protected function toString(array $parsedRecords) {
+    $r = $parsedRecords['base'];
+    $r .= $this->baseRecordsEnd."\n";
+    $r .= implode("\n", $parsedRecords['dynamic'])."\n";
+    if (!empty($parsedRecords['subDomains'])) foreach ($parsedRecords['subDomains'] as $v) $r .= "$v  A  {$parsedRecords['ip']}\n";
+    print "\nSaving\n----\n".$r."\n----\n";
+    return $r;
+  }
+
   protected function addToZoneFile($domain) {
     $zoneFile = $this->zoneFile($domain);
     if (strstr(file_get_contents(self::BIND_ZONECONF), $domain)) return;
+    output("Adding domain $domain to zone confing file");
     file_put_contents(self::BIND_ZONECONF, file_get_contents(self::BIND_ZONECONF).<<<ZONE
 zone "$domain" {
   type master;
@@ -106,7 +168,9 @@ ZONE
   }
 
   protected function addToSlave($domain) {
+    output("Check if domain $domain exists on slave");
     if (!(bool)sys("ssh $this->slaveIp 'grep \"zone \\\"$domain\\\"\"' ".self::BIND_ZONECONF)) {
+      output("Adding domain $domain to slave");
       $cmd = Cli::formatPutFileCommand(<<<ZONE
 zone "$domain" {
   type slave;
