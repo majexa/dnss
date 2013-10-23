@@ -44,7 +44,6 @@ class DnsServer {
     }
     $this->parseSubRecord($r, 'mx', $other, '/^\s*(MX\s+\d+\s+.*)$/m');
     $this->parseSubRecord($r, 'yamail', $other, '/^\s*(.*)\s+CNAME\s+mail.yandex.ru$/m');
-    //die2($r);
     $r['base'] = preg_replace('/(\d+)(\s+; Serial)/m', date('ymds').'$2', $r['base']);
     return $r;
   }
@@ -77,10 +76,10 @@ TEXT;
 
   protected function getBaseRecord($ip) {
     return $this->getCommonRecord().<<<TEXT
-@               NS      ns1.$this->nsZone.
-@               NS      ns2.$this->nsZone.
-@               A       $ip
-*               A       $ip
+@  NS  ns1.$this->nsZone.
+@  NS  ns2.$this->nsZone.
+@  A   $ip
+*  A   $ip
 
 TEXT;
   }
@@ -114,12 +113,12 @@ TEXT;
 
   protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
     $parsedRecords['dynamic'] = [];
-    $parsedRecords['dynamic']['mx'] = "MX  10  mail.$baseDomain.";
+    $parsedRecords['dynamic']['mx'] = "  MX  10  mail.$baseDomain.";
     foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
     sys("rndc reload");
-    $this->addToSlave($baseDomain);
+    //$this->addToSlave($baseDomain);
   }
 
   protected function addDynamicRecord($domain, $name, $record) {
@@ -189,19 +188,20 @@ ZONE
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $zoneFile = File::checkExists($this->zoneFile($baseDomain));
     if ($subDomain) {
+      throw new Exception('not realized');
       list($records, $subDomains) = $this->parseRecords($baseDomain);
       unset($subDomains[$subDomain]);
       file_put_contents($zoneFile, trim($this->addSubDomainRecords($records, $subDomains))."\n");
     }
     else {
-      list(, $subDomains) = $this->parseRecords($baseDomain);
-      if (!$subDomains) {
+      $r = $this->parseRecords($baseDomain);
+      if (empty($r['subDomains'])) {
         unlink($zoneFile);
         $this->deleteFromZoneConf($baseDomain);
       }
     }
     sys('rndc reload');
-    $this->deleteSlaveNsZone($domain);
+    //$this->deleteSlaveNsZone($domain);
   }
 
   function deleteBaseZone($domain) {
