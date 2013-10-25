@@ -27,22 +27,22 @@ class DnsServer {
    * dynamic - могут менять после создания
    * subdomains - записи, относящиеся к сабдоменам
    */
-  protected function parseRecords($baseDomain) {
+  function parseRecords($baseDomain) {
     $c = file_get_contents($this->zoneFile($baseDomain));
     if (!preg_match("/(.*)$this->baseRecordsEnd(.*)/ms", $c, $m)) throw new Exception("Zone file for domain '$baseDomain' was created manual and has unsupported syntax");
     $r['base'] = $m[1];
     if (!preg_match('/^@\s+A\s+([0-9.]+)$/m', $r['base'], $m2)) throw new Exception('Base A record not found');
     $r['ip'] = $m2[1];
-    $other = trim($m[2]);
-    if ($other) {
+    $other = $m[2];
+    if (trim($other)) {
       // domain $baseDomain has extra A records
       foreach (explode("\n", $other) as $v) {
         if (!trim($v)) continue;
         if (!preg_match('/([a-z0-9*\.-]+)\s+A\s+([0-9\.]+)/', $v, $m2)) continue;//throw new Exception("Parse error of record '$v'");
-        $r['subDomains'][$m2[1]] = $other;
+        $r['subDomains'][$m2[1]] = $m2[2];
       }
     }
-    $this->parseSubRecord($r, 'mx', $other, '/^\s*(MX\s+\d+\s+.*)$/m');
+    $this->parseSubRecord($r, 'mx', $other, '/^(\s+IN\s+MX\s+\d+\s+.*)$/m');
     $this->parseSubRecord($r, 'yamail', $other, '/^\s*(.*)\s+CNAME\s+mail.yandex.ru$/m');
     $r['base'] = preg_replace('/(\d+)(\s+; Serial)/m', date('ymds').'$2', $r['base']);
     return $r;
@@ -50,7 +50,7 @@ class DnsServer {
 
   protected function parseSubRecord(&$r, $name, $otherRecords, $regexp) {
     if (preg_match($regexp, $otherRecords, $m)) {
-      if (count($m) == 2) $r['dynamic'][$name] = $m[1];
+      if (count($m) == 2) $r['dynamic'][$name] = str_replace("\n", '', $m[1]);
       elseif (count($m) > 2) $r['dynamic'][$name] = array_slice($m, 1);
       else throw new Exception('no group in regexp');
     }
@@ -113,7 +113,7 @@ TEXT;
 
   protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
     $parsedRecords['dynamic'] = [];
-    $parsedRecords['dynamic']['mx'] = "  MX  10  mail.$baseDomain.";
+    $parsedRecords['dynamic']['mx'] = "  IN  MX  10  mail.$baseDomain.";
     foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
@@ -136,7 +136,9 @@ TEXT;
   }
 
   function addYamailSupport($domain, $code) {
+    $code = 'yamail-'.$code;
     $this->addDynamicRecord($domain, 'yamail', "$code.$domain.  CNAME  mail.yandex.ru.");
+    $this->addDynamicRecord($domain, 'mx', '  IN  MX  10  mx.yandex.ru');
   }
 
   function removeYamailSupport($domain) {
