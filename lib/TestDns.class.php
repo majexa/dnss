@@ -3,10 +3,6 @@
 class TestDns extends NgnTestCase {
 
   function test() {
-    $this->runCode("(new DnsServer)->deleteZone('asd.ru')");
-    $this->runCode("(new DnsServer)->createZone('asd.ru', '123.123.123.123')");
-    $this->runCode("(new DnsServer)->addYamailSupport('asd.ru', 'asdqwdq')");
-    return;
     $this->runCode("(new DnsServer)->createZone('asd.ru', '123.123.123.123')");
     $r = trim(`dig +short A asd.ru @ns1.majexa.ru`);
     $this->assertTrue($r == '123.123.123.123', "dig result is '$r'");

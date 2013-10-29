@@ -3,7 +3,7 @@
 class DnsServer {
 
   const BIND_DIR = '/etc/bind', BIND_CONF = '/etc/bind/named.conf', BIND_CHECKCONF = '/usr/sbin/named-checkconf', BIND_ZONECONF = '/etc/bind/named.conf.local';
-  
+
   public $nsZone, $ip, $masterIp, $slaveIp;
 
   function __construct() {
@@ -43,8 +43,10 @@ class DnsServer {
       }
     }
     $this->parseSubRecord($r, 'mx', $other, '/^(\s+IN\s+MX\s+\d+\s+.*)$/m');
-    $this->parseSubRecord($r, 'yamail', $other, '/^\s*(.*)\s+CNAME\s+mail.yandex.ru$/m');
-    $r['base'] = preg_replace('/(\d+)(\s+; Serial)/m', date('ymds').'$2', $r['base']);
+    $this->parseSubRecord($r, 'yamail', $other, '/^(.*\s+CNAME\s+mail.yandex.ru)/m');
+    $regexp = '/(\d+)(\s*; Serial)/m';
+    if (!preg_match($regexp, $r['base'], $m)) throw new Exception('Serial not found');
+    $r['base'] = preg_replace($regexp, ($m[1] + 1).'$2', $r['base']);
     return $r;
   }
 
@@ -113,7 +115,7 @@ TEXT;
 
   protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
     $parsedRecords['dynamic'] = [];
-    $parsedRecords['dynamic']['mx'] = "  IN  MX  10  mail.$baseDomain.";
+    $parsedRecords['dynamic']['mx'] = "@  IN  MX  10  mail.$baseDomain.";
     foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
@@ -138,7 +140,8 @@ TEXT;
   function addYamailSupport($domain, $code) {
     $code = 'yamail-'.$code;
     $this->addDynamicRecord($domain, 'yamail', "$code.$domain.  CNAME  mail.yandex.ru.");
-    $this->addDynamicRecord($domain, 'mx', '  IN  MX  10  mx.yandex.ru');
+    $this->addDynamicRecord($domain, 'mx', '@  IN  MX  10  mx.yandex.ru');
+    sys("rndc reload");
   }
 
   function removeYamailSupport($domain) {
@@ -150,7 +153,7 @@ TEXT;
     $r .= $this->baseRecordsEnd."\n";
     $r .= implode("\n", $parsedRecords['dynamic'])."\n";
     if (!empty($parsedRecords['subDomains'])) foreach ($parsedRecords['subDomains'] as $v) $r .= "$v  A  {$parsedRecords['ip']}\n";
-    print "\nSaving\n----\n".$r."\n----\n";
+    //print "\nSaving\n----\n".$r."\n----\n";
     return $r;
   }
 
