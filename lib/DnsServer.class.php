@@ -99,11 +99,19 @@ TEXT;
   }
 
   function createZone($domain, $ip, array $dynamic = []) {
-    list($baseDomain) = $this->parseDomain($domain);
-    if (file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' already exists");
-    $parsedRecords['base'] = $this->getBaseRecord($ip);
-    $parsedRecords['ip'] = $ip;
-    $this->_updateZone($baseDomain ,$parsedRecords, $dynamic);
+    list($baseDomain, $subDomain) = $this->parseDomain($domain);
+    $baseZoneExists = file_exists($this->zoneFile($baseDomain));
+    if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
+    if ($baseZoneExists) {
+      $parsedRecords = $this->parseRecords($baseDomain);
+      if (isset($parsedRecords['subDomains'][$subDomain])) throw new Exception("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
+      $parsedRecords['subDomains'][$subDomain] = $ip;
+    }
+    else {
+      $parsedRecords['base'] = $this->getBaseRecord($ip);
+      $parsedRecords['ip'] = $ip;
+    }
+    $this->_updateZone($baseDomain, $parsedRecords, $dynamic);
   }
 
   function updateZone($domain, array $dynamic = []) {
@@ -152,8 +160,11 @@ TEXT;
     $r = $parsedRecords['base'];
     $r .= $this->baseRecordsEnd."\n";
     $r .= implode("\n", $parsedRecords['dynamic'])."\n";
-    if (!empty($parsedRecords['subDomains'])) foreach ($parsedRecords['subDomains'] as $v) $r .= "$v  A  {$parsedRecords['ip']}\n";
-    //print "\nSaving\n----\n".$r."\n----\n";
+    if (!empty($parsedRecords['subDomains'])) {
+      foreach ($parsedRecords['subDomains'] as $subDomain => $ip) {
+        $r .= "$subDomain  A  $ip\n";
+      }
+    }
     return $r;
   }
 
