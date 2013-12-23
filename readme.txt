@@ -4,7 +4,7 @@ Requirements
 - Debian/ubuntu
 - PHP 5.4
 
-Gettings Started
+//Gettings Started
 
 What It Can Do
 

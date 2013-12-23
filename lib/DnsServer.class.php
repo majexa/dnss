@@ -1,5 +1,11 @@
 <?php
 
+/*
+php run.php (new DnsServer)->addYamailSupport("cmf-nn.ru", "857121a2faaa") NGN_ENV_PATH/dns-server/lib
+php run.php (new DnsServer)->createZone('sm.majexa.ru', '198.211.120.127') NGN_ENV_PATH/dns-server/lib
+php run.php (new DnsServer)->updateZone('masted.ru') NGN_ENV_PATH/dns-server/lib
+*/
+
 class DnsServer {
 
   const BIND_DIR = '/etc/bind', BIND_CONF = '/etc/bind/named.conf', BIND_CHECKCONF = '/usr/sbin/named-checkconf', BIND_ZONECONF = '/etc/bind/named.conf.local';
@@ -86,8 +92,6 @@ TEXT;
 TEXT;
   }
 
-
-
   protected function addSubDomainRecords($records, $subDomains) {
     $records .= $this->baseRecordsEnd."\n";
     if ($subDomains) foreach ($subDomains as $subDomain => $ip) $records .= "$subDomain  A  $ip\n";
@@ -119,6 +123,17 @@ TEXT;
     if (!file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' not exists");
     $parsedRecords = $this->parseRecords($baseDomain);
     $this->_updateZone($baseDomain, $parsedRecords, $dynamic);
+  }
+
+  function updateZoneIp($domain, $ip) {
+    list($baseDomain, $subDomain) = $this->parseDomain($domain);
+    if ($subDomain) throw new Exception('$subDomain not realized');
+    if (!file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' not exists");
+    $parsedRecords = $this->parseRecords($baseDomain);
+    $replacingRecords['base'] = $this->getBaseRecord($ip);
+    $replacingRecords['ip'] = $ip;
+    $parsedRecords = array_merge($parsedRecords, $replacingRecords);
+    $this->_updateZone($baseDomain, $parsedRecords);
   }
 
   protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
