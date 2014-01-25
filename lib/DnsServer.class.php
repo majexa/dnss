@@ -102,17 +102,26 @@ TEXT;
     print sys(self::BIND_CHECKCONF.' '.$this->zoneFile($domain));
   }
 
-  function createZone($domain, $ip, array $dynamic = []) {
+  function replaceZone($domain, $ip, array $dynamic = []) {
+    $this->createZone($domain, $ip, $dynamic, true);
+  }
+
+  function createZone($domain, $ip, array $dynamic = [], $replace = false) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $baseZoneExists = file_exists($this->zoneFile($baseDomain));
     if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
     if ($baseZoneExists) {
       $parsedRecords = $this->parseRecords($baseDomain);
       if (isset($parsedRecords['subDomains'][$subDomain])) {
-        output("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
-        return;
+        if ($replace) {
+          $parsedRecords['subDomains'][$subDomain] = $ip;
+        } else {
+          output("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
+          return;
+        }
+      } else {
+        $parsedRecords['subDomains'][$subDomain] = $ip;
       }
-      $parsedRecords['subDomains'][$subDomain] = $ip;
     }
     else {
       $parsedRecords['base'] = $this->getBaseRecord($ip);
