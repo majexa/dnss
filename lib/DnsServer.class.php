@@ -108,7 +108,10 @@ TEXT;
     if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
     if ($baseZoneExists) {
       $parsedRecords = $this->parseRecords($baseDomain);
-      if (isset($parsedRecords['subDomains'][$subDomain])) throw new Exception("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
+      if (isset($parsedRecords['subDomains'][$subDomain])) {
+        output("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
+        return;
+      }
       $parsedRecords['subDomains'][$subDomain] = $ip;
     }
     else {
