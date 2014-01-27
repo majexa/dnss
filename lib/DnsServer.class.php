@@ -106,7 +106,12 @@ TEXT;
     $this->createZone($domain, $ip, $dynamic, true);
   }
 
-  function createZone($domain, $ip, array $dynamic = [], $replace = false) {
+  function createZone($domains, $ip, array $dynamic = [], $replace = false) {
+    foreach ((array)$domains as $domain) $this->_createZone($domain, $ip, $dynamic, $replace);
+    sys("rndc reload");
+  }
+
+  protected function _createZone($domain, $ip, array $dynamic = [], $replace = false) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $baseZoneExists = file_exists($this->zoneFile($baseDomain));
     if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
@@ -135,6 +140,7 @@ TEXT;
     if (!file_exists($this->zoneFile($baseDomain))) throw new Exception("Zone for domain '$baseDomain' not exists");
     $parsedRecords = $this->parseRecords($baseDomain);
     $this->_updateZone($baseDomain, $parsedRecords, $dynamic);
+    sys("rndc reload");
   }
 
   function updateZoneIp($domain, $ip) {
@@ -146,6 +152,7 @@ TEXT;
     $replacingRecords['ip'] = $ip;
     $parsedRecords = array_merge($parsedRecords, $replacingRecords);
     $this->_updateZone($baseDomain, $parsedRecords);
+    sys("rndc reload");
   }
 
   protected function _updateZone($baseDomain, $parsedRecords, array $dynamic = []) {
@@ -154,7 +161,6 @@ TEXT;
     foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
-    sys("rndc reload");
     //$this->addToSlave($baseDomain);
   }
 
