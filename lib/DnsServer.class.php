@@ -233,11 +233,15 @@ ZONE
     sys("ssh $this->slaveIp 'rndc reload'");
   }
 
-  function deleteZone($domain) {
+  function deleteZone($domains) {
+    foreach ((array)$domains as $domain) $this->_deleteZone($domain);
+    sys('rndc reload');
+  }
+
+  function _deleteZone($domain) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $zoneFile = File::checkExists($this->zoneFile($baseDomain));
     if ($subDomain) {
-      throw new Exception('not realized');
       list($records, $subDomains) = $this->parseRecords($baseDomain);
       unset($subDomains[$subDomain]);
       file_put_contents($zoneFile, trim($this->addSubDomainRecords($records, $subDomains))."\n");
@@ -249,8 +253,6 @@ ZONE
         $this->deleteFromZoneConf($baseDomain);
       }
     }
-    sys('rndc reload');
-    //$this->deleteSlaveNsZone($domain);
   }
 
   function deleteBaseZone($domain) {
