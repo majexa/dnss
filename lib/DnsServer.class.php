@@ -102,6 +102,11 @@ TEXT;
     print sys(self::BIND_CHECKCONF.' '.$this->zoneFile($domain));
   }
 
+  /**
+   * @param string|array One or many domains
+   * @param $ip
+   * @param array $dynamic
+   */
   function replaceZone($domain, $ip, array $dynamic = []) {
     $this->createZone($domain, $ip, $dynamic, true);
   }
