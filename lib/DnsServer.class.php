@@ -33,11 +33,11 @@ class DnsServer {
    * dynamic - могут менять после создания
    * subdomains - записи, относящиеся к сабдоменам
    */
-  function parseRecords($baseDomain) {
+  protected function parseRecords($baseDomain) {
     $c = file_get_contents($this->zoneFile($baseDomain));
     if (!preg_match("/(.*)$this->baseRecordsEnd(.*)/ms", $c, $m)) throw new Exception("Zone file for domain '$baseDomain' was created manual and has unsupported syntax");
     $r['base'] = $m[1];
-    if (!preg_match('/^@\s+A\s+([0-9.]+)$/m', $r['base'], $m2)) throw new Exception('Base A record not found');
+    if (!preg_match('/^@\s+A\s+([0-9.]+)$/m', $r['base'], $m2)) throw new Exception("Base A record '{$r['base']}' not found");
     $r['ip'] = $m2[1];
     $other = $m[2];
     if (trim($other)) {
@@ -111,7 +111,11 @@ TEXT;
     $this->createZone($domain, $ip, $dynamic, true);
   }
 
-  function createZone($domains, $ip, array $dynamic = [], $replace = false) {
+  function createZone($domain, $ip, array $dynamic = []) {
+    $this->__createZone($domain, $ip, $dynamic, false);
+  }
+
+  protected function __createZone($domains, $ip, array $dynamic = [], $replace = false) {
     foreach ((array)$domains as $domain) $this->_createZone($domain, $ip, $dynamic, $replace);
     sys("rndc reload");
   }
@@ -270,7 +274,7 @@ ZONE
     file_put_contents(self::BIND_ZONECONF, trim(preg_replace("/zone \"$domain\" {.*};/Ums", '', file_get_contents(self::BIND_ZONECONF)))."\n");
   }
 
-  function deleteSlaveNsZone($domain) {
+  protected function deleteSlaveNsZone($domain) {
     $conf = self::BIND_ZONECONF;
     $domain = str_replace('.', '\\.', $domain);
     $this->phpCmd($this->slaveIp, <<<CODE
@@ -293,7 +297,7 @@ $this->baseRecordsEnd
 TEXT;
   }
 
-  function phpCmd($server, $code) {
+  protected function phpCmd($server, $code) {
     file_put_contents('/tmp/temp.php', "<?php\n\n".$code);
     sys("ssh $server 'mkdir -p /root/temp'");
     sys("ssh 'rm -f $server/root/temp/temp.php'");
