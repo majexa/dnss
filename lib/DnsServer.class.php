@@ -122,6 +122,7 @@ TEXT;
 
   protected function _createZone($domain, $ip, array $dynamic = [], $replace = false) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
+    Misc::checkEmpty($baseDomain);
     $baseZoneExists = file_exists($this->zoneFile($baseDomain));
     if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
     if ($baseZoneExists) {
@@ -130,7 +131,7 @@ TEXT;
         if ($replace) {
           $parsedRecords['subDomains'][$subDomain] = $ip;
         } else {
-          output("Zone for subdomain '$subDomain' of '$baseDomain' already exists");
+          output("Zone for subdomain '$subDomain.$baseDomain' already exists");
           return;
         }
       } else {
@@ -140,6 +141,7 @@ TEXT;
     else {
       $parsedRecords['base'] = $this->getBaseRecord($ip);
       $parsedRecords['ip'] = $ip;
+      if ($subDomain) $parsedRecords['subDomains'] = [$subDomain => $ip];
     }
     $this->_updateZone($baseDomain, $parsedRecords, $dynamic);
   }
@@ -198,8 +200,9 @@ TEXT;
     $this->removeDynamicRecord($domain, 'yamail');
   }
 
-  protected function toString(array $parsedRecords) {
+  protected function toString(array $parsedRecords, $strict = true) {
     $r = $parsedRecords['base'];
+    if ($strict and !$r) throw new EmptyException("\$parsedRecords['base']");
     $r .= $this->baseRecordsEnd."\n";
     $r .= implode("\n", $parsedRecords['dynamic'])."\n";
     if (!empty($parsedRecords['subDomains'])) {
@@ -247,13 +250,13 @@ ZONE
     sys('rndc reload');
   }
 
-  function _deleteZone($domain) {
+  protected function _deleteZone($domain) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $zoneFile = File::checkExists($this->zoneFile($baseDomain));
     if ($subDomain) {
-      list($records, $subDomains) = $this->parseRecords($baseDomain);
-      unset($subDomains[$subDomain]);
-      file_put_contents($zoneFile, trim($this->addSubDomainRecords($records, $subDomains))."\n");
+      $parsedRecords = $this->parseRecords($baseDomain);
+      unset($parsedRecords['subDomains'][$subDomain]);
+      $this->_updateZone($baseDomain, $parsedRecords);
     }
     else {
       $r = $this->parseRecords($baseDomain);

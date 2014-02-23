@@ -1,14 +1,12 @@
 <?php
 
-class DnsCli extends CliHelpArgs {
+class DnsCli extends CliHelpArgsSingle {
 
-  protected $oneEntry = 'server';
-
-  protected function prefix() {
-    return 'dns';
+  function __construct($argv) {
+    parent::__construct($argv, new DnsServer);
   }
 
-  protected function runner() {
+  protected function _runner() {
     return 'dnss';
   }
 

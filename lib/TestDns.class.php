@@ -3,19 +3,17 @@
 class TestDns extends NgnTestCase {
 
   function test() {
-    /*
-    $this->runCode("(new DnsServer)->createZone('asd.ru', '123.123.123.123')");
-    $r = trim(`dig +short A asd.ru @ns1.majexa.ru`);
-    $this->assertTrue($r == '123.123.123.123', "dig result is '$r'");
-    $this->runCode("(new DnsServer)->deleteZone('asd.ru')");
-    $r = trim(`dig +short A asd.ru @ns1.majexa.ru`);
-    $this->assertTrue($r != '123.123.123.123', "dig result is '$r'");
-    $this->runCode("(new DnsServer)->addYamailSupport('asd.ru')");
-    */
-  }
-
-  protected function runCode($code) {
-    print Cli::shell(Cli::addRunPaths($code, "NGN_ENV_PATH/dns-server/lib"));
+    File::delete('/etc/bind/zones/db.sample.ru');
+    print `dnss replaceZone asd.sample.ru 1.1.1.1`;
+    $this->assertTrue((bool)preg_match('/@\s+A\s+1\.1\.1\.1/', file_get_contents('/etc/bind/zones/db.sample.ru')));
+    $this->assertTrue((bool)preg_match('/asd\s+A\s+1\.1\.1\.1/', file_get_contents('/etc/bind/zones/db.sample.ru')));
+    print `dnss deleteZone sample.ru`;
+    $this->assertTrue(file_exists('/etc/bind/zones/db.sample.ru'));
+    print `dnss deleteZone asd.sample.ru`;
+    $this->assertTrue(file_exists('/etc/bind/zones/db.sample.ru'));
+    $this->assertFalse((bool)preg_match('/asd\s+A\s+1\.1\.1\.1/', file_get_contents('/etc/bind/zones/db.sample.ru')));
+    print `dnss deleteZone sample.ru`;
+    $this->assertFalse(file_exists('/etc/bind/zones/db.sample.ru'));
   }
 
 }
