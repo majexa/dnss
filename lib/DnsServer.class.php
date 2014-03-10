@@ -18,7 +18,7 @@ class DnsServer {
 
   protected function parseDomain($domain) {
     if (substr_count($domain, '.') > 1) {
-      preg_match('/(.*)\.(\w+\.\w+)/', $domain, $m);
+      preg_match('/^(.*)\.(\w+\.\w+)$/', $domain, $m);
       return [$m[2], $m[1]];
     }
     else {
@@ -245,22 +245,28 @@ ZONE
     sys("ssh $this->slaveIp 'rndc reload'");
   }
 
-  function deleteZone($domains) {
-    foreach ((array)$domains as $domain) $this->_deleteZone($domain);
+  function deleteZone($domains, $withSubdomains = false) {
+    foreach ((array)$domains as $domain) $this->_deleteZone($domain, $withSubdomains);
     sys('rndc reload');
   }
 
-  protected function _deleteZone($domain) {
+  protected function _deleteZone($domain, $withSubdomains = false) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $zoneFile = File::checkExists($this->zoneFile($baseDomain));
     if ($subDomain) {
       $parsedRecords = $this->parseRecords($baseDomain);
-      unset($parsedRecords['subDomains'][$subDomain]);
+      if ($withSubdomains) {
+        foreach (array_keys($parsedRecords['subDomains']) as $sub) {
+          if (Misc::hasSuffix($subDomain, $sub)) unset($parsedRecords['subDomains'][$sub]);
+        }
+      } else {
+        unset($parsedRecords['subDomains'][$subDomain]);
+      }
       $this->_updateZone($baseDomain, $parsedRecords);
     }
     else {
       $r = $this->parseRecords($baseDomain);
-      if (empty($r['subDomains'])) {
+      if ($withSubdomains or empty($r['subDomains'])) {
         unlink($zoneFile);
         $this->deleteFromZoneConf($baseDomain);
       }
@@ -314,6 +320,69 @@ TEXT;
     Dir::make(self::BIND_DIR.'/zones');
     file_put_contents($this->zoneFile($this->nsZone), $this->getNsRecord());
     $this->addToZoneFile($this->nsZone);
+  }
+
+  const getZonesMethodFlat = 1;
+  const getZonesMethodTree = 2;
+
+  protected function getZones($method = self::getZonesMethodFlat) {
+    $r = [];
+    foreach (glob(self::BIND_DIR."/zones/db.*") as $file) {
+      $domain = Misc::removePrefix('db.', basename($file));
+      try {
+        $parsed = $this->parseRecords($domain);
+      } catch (Exception $e) {
+        output("'$domain' zone has a problem. Need to cleanup");
+        continue;
+      }
+      if ($method === self::getZonesMethodFlat) {
+        $r[] = [
+          'domain' => $domain,
+          'ip' => $parsed['ip']
+        ];
+        if (isset($parsed['subDomains'])) {
+          foreach ($parsed['subDomains'] as $subdomain => $ip) {
+            $r[] = [
+              'domain' => $subdomain.'.'.$domain,
+              'ip' => $parsed['ip']
+            ];
+          }
+        }
+      } else {
+        $v = [
+          'domain' => $domain,
+          'ip' => $parsed['ip']
+        ];
+        if (isset($parsed['subDomains'])) {
+          $v['subDomains'] = [];
+          foreach ($parsed['subDomains'] as $subdomain => $ip) {
+            $v['subDomains'][] = [
+              'domain' => $subdomain.'.'.$domain,
+              'ip' => $parsed['ip']
+            ];
+          }
+        }
+        $r[] = $v;
+      }
+    }
+    return $r;
+  }
+
+  function lst() {
+    foreach ($this->getZones() as $v) print $v['domain'].O::get('CliColors')->getColoredString(' -- '.$v['ip'], 'darkGray')."\n";
+  }
+
+  function cleanup() {
+    foreach (glob(self::BIND_DIR."/zones/db.*") as $file) {
+      $domain = Misc::removePrefix('db.', basename($file));
+      try {
+        $this->parseRecords($domain);
+      } catch (Exception $e) {
+        unlink($file);
+        output("$domain cleaned up");
+        continue;
+      }
+    }
   }
 
 }
