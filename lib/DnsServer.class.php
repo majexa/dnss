@@ -385,4 +385,9 @@ TEXT;
     }
   }
 
+  function createDoceanMailBotZoneAndServer($domain) {
+    //create server
+    //
+  }
+
 }
