@@ -1,1 +1,1 @@
-php ~/ngn-env/run/run.php "new DnsCli('$*')" NGN_ENV_PATH/dns-server/lib
+php ~/ngn-env/run/run.php "new DnsCli('$*')" dnss/lib
