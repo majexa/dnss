@@ -108,7 +108,8 @@ TEXT;
    * @param array $dynamic
    */
   function replaceZone($domain, $ip, array $dynamic = []) {
-    $this->createZone($domain, $ip, $dynamic, true);
+    $this->__createZone($domain, $ip, $dynamic, true);
+    $this->lst();
   }
 
   function createZone($domain, $ip, array $dynamic = []) {
@@ -170,6 +171,7 @@ TEXT;
     $parsedRecords['dynamic'] = [];
     $parsedRecords['dynamic']['mx'] = "@  IN  MX  10  mail.$baseDomain.";
     foreach ($dynamic as $k => $v) $parsedRecords['dynamic'][$k] = $v;
+    output2("# record save:\n".$this->toString($parsedRecords));
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
     //$this->addToSlave($baseDomain);
