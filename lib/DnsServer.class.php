@@ -48,6 +48,7 @@ class DnsServer {
         $r['subDomains'][$m2[1]] = $m2[2];
       }
     }
+    //die2($r['subDomains']);
     $this->parseSubRecord($r, 'mx', $other, '/^(\s+IN\s+MX\s+\d+\s+.*)$/m');
     $this->parseSubRecord($r, 'yamail', $other, '/^(.*\s+CNAME\s+mail.yandex.ru)/m');
     $regexp = '/(\d+)(\s*; Serial)/m';
@@ -125,18 +126,22 @@ TEXT;
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     Misc::checkEmpty($baseDomain);
     $baseZoneExists = file_exists($this->zoneFile($baseDomain));
-    if ($baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists");
+    if (!$replace and $baseZoneExists and !$subDomain) throw new Exception("Base zone for domain '$baseDomain' already exists. Use replace");
     if ($baseZoneExists) {
       $parsedRecords = $this->parseRecords($baseDomain);
-      if (isset($parsedRecords['subDomains'][$subDomain])) {
-        if ($replace) {
-          $parsedRecords['subDomains'][$subDomain] = $ip;
+      if ($subDomain) {
+        if (isset($parsedRecords['subDomains'][$subDomain])) {
+          if ($replace) {
+            $parsedRecords['subDomains'][$subDomain] = $ip;
+          } else {
+            output("Zone for subdomain '$subDomain.$baseDomain' already exists");
+            return;
+          }
         } else {
-          output("Zone for subdomain '$subDomain.$baseDomain' already exists");
-          return;
+          $parsedRecords['subDomains'][$subDomain] = $ip;
         }
       } else {
-        $parsedRecords['subDomains'][$subDomain] = $ip;
+        $parsedRecords['ip'] = $ip;
       }
     }
     else {
@@ -174,7 +179,7 @@ TEXT;
     output2("# record save:\n".$this->toString($parsedRecords));
     file_put_contents($this->zoneFile($baseDomain), $this->toString($parsedRecords));
     $this->addToZoneFile($baseDomain);
-    //$this->addToSlave($baseDomain);
+    // $this->addToSlave($baseDomain);
   }
 
   protected function addDynamicRecord($domain, $name, $record) {
