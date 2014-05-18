@@ -141,6 +141,7 @@ TEXT;
           $parsedRecords['subDomains'][$subDomain] = $ip;
         }
       } else {
+        $parsedRecords['base'] = $this->getBaseRecord($ip);
         $parsedRecords['ip'] = $ip;
       }
     }

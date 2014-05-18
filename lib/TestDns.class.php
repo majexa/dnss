@@ -3,10 +3,9 @@
 class TestDns extends NgnTestCase {
 
   function test() {
-    //print `dnss createZone sample.ru 1.1.1.1`;
-    //print `dnss createZone sample.ru 1.1.1.1`;
     print `dnss replaceZone sample.ru 1.1.1.1`;
-    //return;
+    print `dnss replaceZone sample.ru 2.2.2.2`;
+    return;
 
     File::delete('/etc/bind/zones/db.sample.ru');
     print `dnss replaceZone asd.sample.ru 1.1.1.1`;
