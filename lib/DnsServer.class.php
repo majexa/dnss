@@ -352,7 +352,7 @@ TEXT;
           foreach ($parsed['subDomains'] as $subdomain => $ip) {
             $r[] = [
               'domain' => $subdomain.'.'.$domain,
-              'ip' => $parsed['ip']
+              'ip' => $ip
             ];
           }
         }
@@ -377,7 +377,7 @@ TEXT;
   }
 
   function lst() {
-    foreach ($this->getZones() as $v) print $v['domain'].O::get('CliColors')->getColoredString(' -- '.$v['ip'], 'darkGray')."\n";
+    foreach ($this->getZones() as $v) print str_pad($v['domain'], 30).O::get('CliColors')->getColoredString($v['ip'], 'darkGray')."\n";
   }
 
   function cleanup() {
