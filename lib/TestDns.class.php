@@ -2,11 +2,6 @@
 
 class TestDns extends NgnTestCase {
 
-  function test1() {
-    `dns createNsZone`;
-  }
-
-  /*
   function test() {
     File::delete('/etc/bind/zones/db.sample.ru');
     print `dnss replaceZone asd.sample.ru 1.1.1.1`;
@@ -20,6 +15,5 @@ class TestDns extends NgnTestCase {
     print `dnss deleteZone sample.ru`;
     $this->assertFalse(file_exists('/etc/bind/zones/db.sample.ru'));
   }
-  */
 
 }

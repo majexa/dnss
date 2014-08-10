@@ -105,14 +105,18 @@ TEXT;
     Dir::make(self::BIND_DIR.'/zones');
     file_put_contents($this->zoneFile($this->nsZone), $this->getNsRecord($ip));
     $this->addToZoneFile($this->nsZone);
+    $this->updateZone($this->nsZone);
   }
 
   /**
-   * @param string $domain Домен
-   * @param string $ip IP A-записи
+   * @param $domain Домен
+   * @param $ip IP A-записи
+   * @param bool $addSudomainWildcard Создавать зону для сабдоменов на этот же IP
    */
-  function createZone($domain, $ip) {
+  function createZone($domain, $ip, $addSudomainWildcard = true) {
     $this->__createZone($domain, $ip, [], false);
+    if ($addSudomainWildcard and $domain[0] != '*') $this->__createZone('*.'.$domain, $ip, [], false);
+    `rndc reload`;
   }
 
   function checkZone($domain) {
@@ -126,12 +130,12 @@ TEXT;
    */
   function replaceZone($domain, $ip, array $dynamic = []) {
     $this->__createZone($domain, $ip, $dynamic, true);
+    `rndc reload`;
     $this->lst();
   }
 
   protected function __createZone($domains, $ip, array $dynamic = [], $replace = false) {
     foreach ((array)$domains as $domain) $this->_createZone($domain, $ip, $dynamic, $replace);
-    sys("rndc reload");
   }
 
   protected function _createZone($domain, $ip, array $dynamic = [], $replace = false) {
