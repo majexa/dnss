@@ -10,7 +10,7 @@ class DnsServer {
 
   const BIND_DIR = '/etc/bind', BIND_CONF = '/etc/bind/named.conf', BIND_CHECKCONF = '/usr/sbin/named-checkconf', BIND_ZONECONF = '/etc/bind/named.conf.local';
 
-  public $nsZone, $ip, $masterIp, $slaveIp;
+  public $nsZone, $masterIp, $slaveIp;
 
   function __construct() {
     Arr::toObjProp(require dirname(__DIR__).'/config.php', $this);
@@ -48,7 +48,6 @@ class DnsServer {
         $r['subDomains'][$m2[1]] = $m2[2];
       }
     }
-    //die2($r['subDomains']);
     $this->parseSubRecord($r, 'mx', $other, '/^(\s+IN\s+MX\s+\d+\s+.*)$/m');
     $this->parseSubRecord($r, 'yamail', $other, '/^(.*\s+CNAME\s+mail.yandex.ru)/m');
     $regexp = '/(\d+)(\s*; Serial)/m';
@@ -99,22 +98,35 @@ TEXT;
     return $records;
   }
 
+  /**
+   * @param string $ip IP A-записи
+   */
+  function createNsZone($ip) {
+    Dir::make(self::BIND_DIR.'/zones');
+    file_put_contents($this->zoneFile($this->nsZone), $this->getNsRecord($ip));
+    $this->addToZoneFile($this->nsZone);
+  }
+
+  /**
+   * @param string $domain Домен
+   * @param string $ip IP A-записи
+   */
+  function createZone($domain, $ip) {
+    $this->__createZone($domain, $ip, [], false);
+  }
+
   function checkZone($domain) {
     print sys(self::BIND_CHECKCONF.' '.$this->zoneFile($domain));
   }
 
   /**
-   * @param string|array One or many domains
-   * @param $ip
+   * @param string|array $domain Один или несколько Доменов
+   * @param string $ip
    * @param array $dynamic
    */
   function replaceZone($domain, $ip, array $dynamic = []) {
     $this->__createZone($domain, $ip, $dynamic, true);
     $this->lst();
-  }
-
-  function createZone($domain, $ip, array $dynamic = []) {
-    $this->__createZone($domain, $ip, $dynamic, false);
   }
 
   protected function __createZone($domains, $ip, array $dynamic = [], $replace = false) {
@@ -301,12 +313,12 @@ CODE
     sys("ssh $this->slaveIp 'rndc reload'");
   }
 
-  protected function getNsRecord() {
+  protected function getNsRecord($ip) {
     return $this->getCommonRecord().<<<TEXT
 @               NS      ns1.$this->nsZone.
 @               NS      ns2.$this->nsZone.
-@               A       $this->ip
-www             A       $this->ip
+@               A       $ip
+www             A       $ip
 ns1             A       $this->masterIp
 ns2             A       $this->slaveIp
 $this->baseRecordsEnd
@@ -322,12 +334,6 @@ TEXT;
     sys("ssh $server 'php /root/temp/temp.php'");
     sys("rm /tmp/temp.php");
     sys("ssh $server 'rm /root/temp/temp.php'");
-  }
-
-  function createNsZone() {
-    Dir::make(self::BIND_DIR.'/zones');
-    file_put_contents($this->zoneFile($this->nsZone), $this->getNsRecord());
-    $this->addToZoneFile($this->nsZone);
   }
 
   const getZonesMethodFlat = 1;
