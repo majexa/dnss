@@ -255,7 +255,7 @@ ZONE
     output("Check if domain $domain exists on slave");
     if (!(bool)sys("ssh $this->slaveIp 'grep \"zone \\\"$domain\\\"\"' ".self::BIND_ZONECONF)) {
       output("Adding domain $domain to slave");
-      $cmd = Cli::formatPutFileCommand(<<<ZONE
+      $cmd = Cli::filePutCommand(<<<ZONE
 zone "$domain" {
   type slave;
   file "zones/db.$domain";
