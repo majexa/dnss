@@ -1,6 +1,6 @@
 <?php
 
-class DnsCli extends CliHelpArgsSingle {
+class DnsCli extends CliAccessArgsSingle {
 
   function __construct($argv) {
     parent::__construct($argv, new DnsServer);
