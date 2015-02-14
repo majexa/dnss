@@ -18,7 +18,7 @@ class DnsServer {
 
   protected function parseDomain($domain) {
     if (substr_count($domain, '.') > 1) {
-      preg_match('/^(.*)\.(\w+\.\w+)$/', $domain, $m);
+      if (!preg_match('/^(.*)\.([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)$/', $domain, $m)) throw new Exception('Parse domain "'.$domain.'" error');
       return [$m[2], $m[1]];
     }
     else {
@@ -109,13 +109,13 @@ TEXT;
   }
 
   /**
-   * @param $domain Домен
-   * @param $ip IP A-записи
-   * @param bool $addSudomainWildcard Создавать зону для сабдоменов на этот же IP
+   * @param string $domain Домен
+   * @param string $ip IP A-записи
+   * @param bool $addWildcard Создавать зону для сабдоменов на этот же IP
    */
-  function createZone($domain, $ip, $addSudomainWildcard = true) {
+  function createZone($domain, $ip, $addWildcard = true) {
     $this->__createZone($domain, $ip, [], false);
-    if ($addSudomainWildcard and $domain[0] != '*') $this->__createZone('*.'.$domain, $ip, [], false);
+    if ($addWildcard and $domain[0] != '*') $this->__createZone('*.'.$domain, $ip, [], false);
     `rndc reload`;
   }
 
@@ -269,12 +269,17 @@ ZONE
     sys("ssh $this->slaveIp 'rndc reload'");
   }
 
-  function deleteZone($domains, $withSubdomains = false) {
-    foreach ((array)$domains as $domain) $this->_deleteZone($domain, $withSubdomains);
+  function deleteZone($domain, $withWildcard = true, $withSubdomains = false) {
+    $this->_deleteZone($domain, $withWildcard, $withSubdomains);
     sys('rndc reload');
   }
 
-  protected function _deleteZone($domain, $withSubdomains = false) {
+//  protected function deleteZone($domains, $withSubdomains = false) {
+//    foreach ((array)$domains as $domain) $this->_deleteZone($domain, $withSubdomains);
+//    sys('rndc reload');
+//  }
+
+  protected function _deleteZone($domain, $withWildcard = true, $withSubdomains = false) {
     list($baseDomain, $subDomain) = $this->parseDomain($domain);
     $zoneFile = File::checkExists($this->zoneFile($baseDomain));
     if ($subDomain) {
@@ -290,7 +295,7 @@ ZONE
     }
     else {
       $r = $this->parseRecords($baseDomain);
-      if ($withSubdomains or empty($r['subDomains'])) {
+      if ($withSubdomains or empty($r['subDomains']) or (count($r['subDomains']) === 1 and array_keys($r['subDomains'])[0] === '*')) {
         unlink($zoneFile);
         $this->deleteFromZoneConf($baseDomain);
       }
@@ -401,11 +406,6 @@ TEXT;
         continue;
       }
     }
-  }
-
-  function createDoceanMailBotZoneAndServer($domain) {
-    //create server
-    //
   }
 
 }
