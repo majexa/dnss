@@ -392,7 +392,16 @@ TEXT;
   }
 
   function lst() {
-    foreach ($this->getZones() as $v) print str_pad($v['domain'], 30).O::get('CliColors')->getColoredString($v['ip'], 'darkGray')."\n";
+    $zones = $this->getZones();
+    $domains = Arr::get($zones, 'domain');
+    $nonWildcardDomains = [];
+    foreach ($domains as $n => $domain) {
+      if ($domain[0] == '*' and in_array(Misc::removePrefix('*.', $domain), $domains)) continue;
+      if (in_array('*.'.$domain, $domains)) $domain .=  ', *';
+      $nonWildcardDomains[$n] = $domain;
+    }
+    foreach ($nonWildcardDomains as $n => $domain) print str_pad($domain, 30). //
+      O::get('CliColors')->getColoredString($zones[$n]['ip'], 'darkGray')."\n";
   }
 
   function cleanup() {
