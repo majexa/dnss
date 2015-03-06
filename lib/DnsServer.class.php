@@ -401,7 +401,7 @@ TEXT;
       $nonWildcardDomains[$n] = $domain;
     }
     foreach ($nonWildcardDomains as $n => $domain) print str_pad($domain, 30). //
-      O::get('CliColors')->getColoredString($zones[$n]['ip'], 'darkGray')."\n";
+      CliColors::colored($zones[$n]['ip'], 'darkGray')."\n";
   }
 
   function cleanup() {
