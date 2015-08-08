@@ -48,8 +48,9 @@ class DnsServer {
         $r['subDomains'][$m2[1]] = $m2[2];
       }
     }
-    $this->parseSubRecord($r, 'mx', $other, '/^(\s+IN\s+MX\s+\d+\s+.*)$/m');
-    $this->parseSubRecord($r, 'yamail', $other, '/^(.*\s+CNAME\s+mail.yandex.ru)/m');
+    $this->parseSubRecord($r, 'mx', $other, '/^(.*\s+IN\s+MX\s+\d+\s+.*)$/m');
+    $this->parseSubRecord($r, 'txt', $other, '/^(.*\s+TXT\s+.*)$/m');
+    $this->parseSubRecord($r, 'yamail', $other, '/^(.*\s+CNAME\s+mail.yandex.ru.)/m');
     $regexp = '/(\d+)(\s*; Serial)/m';
     if (!preg_match($regexp, $r['base'], $m)) throw new Exception('Serial not found');
     $r['base'] = preg_replace($regexp, ($m[1] + 1).'$2', $r['base']);
@@ -216,7 +217,7 @@ TEXT;
   function addYamailSupport($domain, $code) {
     $code = 'yamail-'.$code;
     $this->addDynamicRecord($domain, 'yamail', "$code.$domain.  CNAME  mail.yandex.ru.");
-    $this->addDynamicRecord($domain, 'mx', '@  IN  MX  10  mx.yandex.ru');
+    $this->addDynamicRecord($domain, 'mx', '@  IN  MX  10  mx.yandex.ru.');
     $this->addDynamicRecord($domain, 'txt', '@  TXT  v=spf1 redirect=_spf.yandex.net');
     sys("rndc reload");
   }
