@@ -217,6 +217,7 @@ TEXT;
     $code = 'yamail-'.$code;
     $this->addDynamicRecord($domain, 'yamail', "$code.$domain.  CNAME  mail.yandex.ru.");
     $this->addDynamicRecord($domain, 'mx', '@  IN  MX  10  mx.yandex.ru');
+    $this->addDynamicRecord($domain, 'txt', '@  TXT  v=spf1 redirect=_spf.yandex.net');
     sys("rndc reload");
   }
 
