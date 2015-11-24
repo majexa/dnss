@@ -18,7 +18,7 @@ class DnsServer {
 
   protected function parseDomain($domain) {
     if (substr_count($domain, '.') > 1) {
-      if (!preg_match('/^(.*)\.([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)$/', $domain, $m)) throw new Exception('Parse domain "'.$domain.'" error');
+      if (!preg_match('/^(.*)\.([a-z0-9][a-z0-9-]*\.[a-z][a-z0-9-]*)$/', $domain, $m)) throw new Exception('Parse domain "'.$domain.'" error');
       return [$m[2], $m[1]];
     }
     else {
@@ -127,12 +127,12 @@ TEXT;
   /**
    * @param string|array $domain Один или несколько Доменов
    * @param string $ip
-   * @param array $dynamic
+   * @param bool $addWildcard Создавать зону для сабдоменов на этот же IP
    */
-  function replaceZone($domain, $ip, array $dynamic = []) {
-    $this->__createZone($domain, $ip, $dynamic, true);
+  function replaceZone($domain, $ip, $addWildcard = true) {
+    $this->__createZone($domain, $ip, [], true);
+    if ($addWildcard and $domain[0] != '*') $this->__createZone('*.'.$domain, $ip, [], true);
     `rndc reload`;
-    $this->lst();
   }
 
   protected function __createZone($domains, $ip, array $dynamic = [], $replace = false) {
