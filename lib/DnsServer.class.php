@@ -403,7 +403,7 @@ TEXT;
       $nonWildcardDomains[$n] = $domain;
     }
     foreach ($nonWildcardDomains as $n => $domain) print str_pad($domain, 30). //
-      CliColors::colored($zones[$n]['ip'], 'darkGray')."\n";
+      CliColors::colored($zones[$n]['ip'], 'cyan')."\n";
   }
 
   function cleanup() {
